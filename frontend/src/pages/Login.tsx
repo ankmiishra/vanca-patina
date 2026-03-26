@@ -30,6 +30,7 @@ const Login = () => {
         : await loginUser(body.email, body.password);
 
       localStorage.setItem("token", data.token);
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("role", data.role);
 
       if (data.role === "admin") window.location.href = "/admin/dashboard";

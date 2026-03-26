@@ -27,9 +27,11 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const transitions = {
-    processing: ["shipped", "delivered"],
+    pending: ["processing", "cancelled"],
+    processing: ["shipped", "cancelled"],
     shipped: ["delivered"],
     delivered: [],
+    cancelled: [],
   };
 
   if (!transitions[order.status].includes(status)) {
@@ -41,7 +43,16 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   order.status = status;
   if (status === "delivered") {
     order.isPaid = true;
-    order.paidAt = Date.now();
+    order.paidAt = order.paidAt || Date.now();
+  }
+
+  if (status === "cancelled") {
+    // restore stock for cancelled orders where not delivered
+    await Promise.all(
+      order.orderItems.map((item) =>
+        Product.findByIdAndUpdate(item.product, { $inc: { stock: item.qty } })
+      )
+    );
   }
 
   const updatedOrder = await order.save();

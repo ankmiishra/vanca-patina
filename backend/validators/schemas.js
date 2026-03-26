@@ -88,13 +88,17 @@ const updateCartSchema = addToCartSchema.extend({
   qty: z.coerce.number().int().positive(),
 });
 
+const addressSchema = z.object({
+  label: z.string().min(1).max(50).optional(),
+  address: z.string().min(5).max(300),
+  city: z.string().min(2).max(100),
+  postalCode: z.string().min(3).max(20),
+  country: z.string().min(2).max(100),
+  isDefault: z.boolean().optional(),
+});
+
 const checkoutSchema = z.object({
-  shippingAddress: z.object({
-    address: z.string().min(5).max(300).transform((s) => s?.trim()),
-    city: z.string().min(2).max(100).transform((s) => s?.trim()),
-    postalCode: z.string().min(3).max(20).transform((s) => s?.trim()),
-    country: z.string().min(2).max(100).transform((s) => s?.trim()),
-  }),
+  shippingAddress: addressSchema,
   paymentMethod: z.enum(["PayPal", "COD"]).default("PayPal"),
 });
 
@@ -120,6 +124,7 @@ module.exports = {
   addToCartSchema,
   updateCartSchema,
   checkoutSchema,
+  addressSchema,
   updateOrderStatusSchema,
   uploadProductImageSchema,
   idParamSchema,

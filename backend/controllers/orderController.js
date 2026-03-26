@@ -30,15 +30,13 @@ const addOrderItems = asyncHandler(async (req, res) => {
     };
   });
 
-  const itemsPrice = orderItems.reduce(
-    (sum, item) => sum + item.price * item.qty,
-    0
-  );
-  const shippingPrice = 0;
-  const taxPrice = 0;
-  const totalPrice = itemsPrice + shippingPrice + taxPrice;
+  const itemsPrice = orderItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const taxRate = Number(process.env.TAX_RATE || 0.05);
+  const shippingPrice = itemsPrice > 2000 ? 0 : 75;
+  const taxPrice = Number((itemsPrice * taxRate).toFixed(2));
+  const totalPrice = Number((itemsPrice + shippingPrice + taxPrice).toFixed(2));
 
-  // Reduce stock
+  // Reduce stock atomically
   await Promise.all(
     cart.items.map((item) =>
       Product.findByIdAndUpdate(item.product._id, { $inc: { stock: -item.qty } })
@@ -54,6 +52,9 @@ const addOrderItems = asyncHandler(async (req, res) => {
     taxPrice,
     shippingPrice,
     totalPrice,
+    status: 'pending',
+    isPaid: paymentMethod === 'COD' ? false : true,
+    paidAt: paymentMethod === 'COD' ? null : new Date(),
   });
 
   // Clear cart after checkout.
@@ -78,8 +79,8 @@ const getOrderById = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  // Ensure user can only see their own orders.
-  if (order.user._id.toString() !== req.user._id.toString()) {
+  // Allow customers to access own orders and admins to access any order.
+  if (order.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
     const err = new Error("Forbidden");
     err.statusCode = 403;
     throw err;

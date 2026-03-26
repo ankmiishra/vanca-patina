@@ -24,6 +24,7 @@ const AdminLogin = () => {
       const data = await loginUser(email, password);
 
       localStorage.setItem("token", data.token);
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("role", data.role);
       window.location.href = "/admin/dashboard";
     } catch (error: any) {

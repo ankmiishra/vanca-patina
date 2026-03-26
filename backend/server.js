@@ -8,11 +8,14 @@ const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const mongoSanitize = require("express-mongo-sanitize");
 const xssClean = require("xss-clean");
+const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
 
 const app = express();
 
 app.disable("x-powered-by");
+
+app.use(cookieParser());
 
 // Security headers
 app.use(helmet());
@@ -31,8 +34,8 @@ app.use(
 );
 
 // Input sanitization
-//app.use(mongoSanitize());
-//app.use(xssClean());
+app.use(mongoSanitize());
+app.use(xssClean());
 
 // CORS: strict in production; permissive in development.
 // This prevents "Network Error" in the browser when Vite is opened via a LAN IP.
