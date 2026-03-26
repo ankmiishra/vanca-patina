@@ -31,8 +31,8 @@ app.use(
 );
 
 // Input sanitization
-app.use(mongoSanitize());
-app.use(xssClean());
+//app.use(mongoSanitize());
+//app.use(xssClean());
 
 // CORS: strict in production; permissive in development.
 // This prevents "Network Error" in the browser when Vite is opened via a LAN IP.

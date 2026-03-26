@@ -15,15 +15,23 @@ const fadeUp = {
 };
 
 const Index = () => {
-  const { products, loading } = useProducts();
+  const { products, loading, error } = useProducts();
+
+  // Extract unique categories with product counts
   const categories = useMemo(() => {
+    console.log("📂 Categories extraction - products count:", products.length);
+    
     const counts = products.reduce((acc: Record<string, number>, p) => {
       acc[p.category] = (acc[p.category] ?? 0) + 1;
       return acc;
     }, {});
-    return Object.entries(counts)
+
+    const result = Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
-      .slice(0, 4);
+      .sort((a, b) => b.count - a.count); // Sort by count descending
+
+    console.log("📂 Total categories found:", result.length, result);
+    return result;
   }, [products]);
 
   return (
@@ -76,13 +84,24 @@ const Index = () => {
           title="Featured Products"
           description="Our most popular patina solutions and metal finishing products"
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.slice(0, 4).map((product, i) => (
-            <motion.div key={product.id} {...fadeUp} transition={{ duration: 0.6, delay: i * 0.1 }}>
-              <ProductCard product={product} />
-            </motion.div>
-          ))}
-        </div>
+        {loading && (
+          <div className="text-center py-12 text-muted-foreground">Loading featured products...</div>
+        )}
+        {error && (
+          <div className="text-center py-12 text-destructive">Failed to load products: {error}</div>
+        )}
+        {!loading && products.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.slice(0, 4).map((product, i) => (
+              <motion.div key={product.id} {...fadeUp} transition={{ duration: 0.6, delay: i * 0.1 }}>
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+        {!loading && products.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">No products available</div>
+        )}
         <div className="text-center mt-12">
           <Link
             to="/shop"
@@ -94,26 +113,34 @@ const Index = () => {
       </div>
     </section>
 
-    {/* Categories */}
+    {/* Categories - Fixed: Show all categories */}
     <section className="py-24 bg-card/30">
       <div className="container mx-auto px-4 lg:px-8">
         <SectionHeading subtitle="Browse" title="Our Categories" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((cat, i) => (
-            <motion.div key={cat.name} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.1 }}>
-              <Link
-                to="/shop"
-                className="glass-card p-8 block group hover-glow transition-all"
-              >
-                <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                  {cat.name}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-2">Explore our full range in this category.</p>
-                <span className="text-xs text-primary mt-4 inline-block">{cat.count} products →</span>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+        {loading || error ? (
+          <div className="text-center text-muted-foreground py-12">
+            {loading ? "Loading categories..." : "Failed to load categories"}
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12">No categories available</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((cat, i) => (
+              <motion.div key={cat.name} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.1 }}>
+                <Link
+                  to={`/shop?category=${encodeURIComponent(cat.name)}`}
+                  className="glass-card p-8 block group hover-glow transition-all"
+                >
+                  <h3 className="font-display text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                    {cat.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-2">Explore our full range in this category.</p>
+                  <span className="text-xs text-primary mt-4 inline-block">{cat.count} products →</span>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
 

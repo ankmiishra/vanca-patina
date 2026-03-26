@@ -6,30 +6,31 @@ const objectIdSchema = z
   .refine((val) => mongoose.Types.ObjectId.isValid(val), { message: "Invalid id" });
 
 const registerSchema = z.object({
-  name: z.string().min(2).max(100).transform((s) => s.trim()),
-  email: z.string().email().max(254).transform((s) => s.trim().toLowerCase()),
+  name: z.string().min(2).max(100).transform((s) => s?.trim()),
+  email: z.string().email().max(254).transform((s) => s?.trim().toLowerCase()),
   password: z.string().min(8).max(72),
 });
 
 const loginSchema = z.object({
-  email: z.string().email().transform((s) => s.trim().toLowerCase()),
+  email: z.string().email().transform((s) => s?.trim().toLowerCase()),
   password: z.string().min(1),
 });
 
 const updateProfileSchema = z
   .object({
-    name: z.string().min(2).max(100).optional().transform((s) => s.trim()),
-    email: z.string().email().optional().transform((s) => s.trim().toLowerCase()),
+    name: z.string().min(2).max(100).optional().transform((s) => s?.trim()),
+    email: z.string().email().optional().transform((s) => s?.trim().toLowerCase()),
     password: z.string().min(8).max(72).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "No fields provided" });
 
 const productBaseSchema = z.object({
-  name: z.string().min(2).max(200).transform((s) => s.trim()),
+  name: z.string().min(2).max(200).transform((s) => s?.trim()),
   price: z.coerce.number().nonnegative(),
-  category: z.string().min(1).max(100).transform((s) => s.trim()),
-  description: z.string().min(10).max(5000).transform((s) => s.trim()),
+  category: z.string().min(1).max(100).transform((s) => s?.trim()),
+  description: z.string().min(10).max(5000).transform((s) => s?.trim()),
   stock: z.coerce.number().int().nonnegative(),
+  finishType: z.enum(["Matte", "Glossy", "Satin", "Standard"]).default("Standard").optional(),
   image: z.string().url().optional().nullable(),
   images: z.array(z.string().url()).optional().nullable(),
   ratings: z.coerce.number().nonnegative().optional(),
@@ -57,9 +58,9 @@ const getProductsQuerySchema = z.object({
     .optional()
     .transform((v) => (v ? Number(v) : undefined))
     .pipe(z.number().int().positive().optional()),
-  search: z.string().optional().transform((s) => s.trim()),
-  keyword: z.string().optional().transform((s) => s.trim()),
-  category: z.string().optional().transform((s) => s.trim()),
+  search: z.string().optional().transform((s) => s?.trim()),
+  keyword: z.string().optional().transform((s) => s?.trim()),
+  category: z.string().optional().transform((s) => s?.trim()),
   inStock: z
     .string()
     .optional()
@@ -89,10 +90,10 @@ const updateCartSchema = addToCartSchema.extend({
 
 const checkoutSchema = z.object({
   shippingAddress: z.object({
-    address: z.string().min(5).max(300),
-    city: z.string().min(2).max(100),
-    postalCode: z.string().min(3).max(20),
-    country: z.string().min(2).max(100),
+    address: z.string().min(5).max(300).transform((s) => s?.trim()),
+    city: z.string().min(2).max(100).transform((s) => s?.trim()),
+    postalCode: z.string().min(3).max(20).transform((s) => s?.trim()),
+    country: z.string().min(2).max(100).transform((s) => s?.trim()),
   }),
   paymentMethod: z.enum(["PayPal", "COD"]).default("PayPal"),
 });

@@ -51,7 +51,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [mapBackendProduct]);
+  }, []);
 
   useEffect(() => {
     // Initial sync when the user is already logged in.

@@ -26,6 +26,11 @@ const productSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
+  finishType: {
+    type: String,
+    enum: ["Matte", "Glossy", "Satin", "Standard"],
+    default: "Standard"
+  },
   ratings: {
     type: Number,
     required: true,
