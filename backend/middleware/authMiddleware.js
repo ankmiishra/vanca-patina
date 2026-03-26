@@ -1,31 +1,45 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const asyncHandler = require("../utils/asyncHandler");
 
-const protect = async (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-      req.user = await User.findById(decoded.id).select('-password');
-      return next();
-    } catch (error) {
-      console.error(error);
-      return res.status(401).json({ message: 'Not authorized, token failed' });
-    }
+const protect = asyncHandler(async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const err = new Error("Not authorized, no token");
+    err.statusCode = 401;
+    throw err;
   }
 
-  if (!token) {
-    return res.status(401).json({ message: 'Not authorized, no token' });
+  const token = authHeader.split(" ")[1];
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = await User.findById(decoded.id).select("-password");
+  if (!user) {
+    const err = new Error("Not authorized, user not found");
+    err.statusCode = 401;
+    throw err;
   }
+
+  req.user = user;
+  next();
+});
+
+const requireRole = (role) => (req, res, next) => {
+  if (!req.user) {
+    const err = new Error("Not authorized");
+    err.statusCode = 401;
+    return next(err);
+  }
+
+  if (req.user.role !== role) {
+    const err = new Error(`Forbidden: requires ${role} role`);
+    err.statusCode = 403;
+    return next(err);
+  }
+
+  next();
 };
 
-const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
-    next();
-  } else {
-    res.status(401).json({ message: 'Not authorized as an admin' });
-  }
-};
+const admin = requireRole("admin");
+const user = requireRole("user");
 
-module.exports = { protect, admin };
+module.exports = { protect, admin, user, requireRole };
