@@ -6,8 +6,8 @@ const mongoose = require("mongoose");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
-const mongoSanitize = require("express-mongo-sanitize");
-const xssClean = require("xss-clean");
+// const mongoSanitize = require("express-mongo-sanitize");
+// const xssClean = require("xss-clean");
 const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
 
@@ -16,6 +16,19 @@ const app = express();
 app.disable("x-powered-by");
 
 app.use(cookieParser());
+
+// Handle OPTIONS requests before security middlewares
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.sendStatus(200);
+    return;
+  }
+  next();
+});
 
 // Security headers
 app.use(helmet());
@@ -33,9 +46,10 @@ app.use(
   })
 );
 
-// Input sanitization
-app.use(mongoSanitize());
-app.use(xssClean());
+// Input sanitization - REMOVED deprecated express-mongo-sanitize and xss-clean
+// These packages are incompatible with Express 5.x and should be replaced with proper input validation
+// app.use(mongoSanitize());
+// app.use(xssClean());
 
 // CORS: strict in production; permissive in development.
 // This prevents "Network Error" in the browser when Vite is opened via a LAN IP.
@@ -43,22 +57,40 @@ const clientOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(",").map((s) => s.trim())
   : [];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Non-browser requests (no Origin header) should be allowed.
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
 
-      if (process.env.NODE_ENV !== "production") {
+    // In development, allow localhost origins
+    if (process.env.NODE_ENV !== "production") {
+      if (origin.startsWith("http://localhost:")) {
         return callback(null, true);
       }
+    }
 
-      if (clientOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+    // In production, check against allowed origins
+    if (clientOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "10kb" }));
 
@@ -79,6 +111,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
 // test route

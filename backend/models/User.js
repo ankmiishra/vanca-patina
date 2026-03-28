@@ -24,6 +24,10 @@ const UserSchema = new mongoose.Schema({
       createdAt: { type: Date, default: Date.now },
     },
   ],
+  // OTP fields for hybrid authentication
+  otp: { type: String },
+  otpExpiry: { type: Date },
+  otpAttempts: { type: Number, default: 0 },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function () {

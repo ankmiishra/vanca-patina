@@ -16,6 +16,21 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const sendOtpSchema = z.object({
+  email: z.string().email().transform((s) => s?.trim().toLowerCase()),
+});
+
+const verifyOtpSchema = z.object({
+  email: z.string().email().transform((s) => s?.trim().toLowerCase()),
+  otp: z.string().length(6).regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
+const setPasswordSchema = z.object({
+  email: z.string().email().transform((s) => s?.trim().toLowerCase()),
+  otp: z.string().length(6).regex(/^\d{6}$/, "OTP must be 6 digits"),
+  password: z.string().min(8).max(72),
+});
+
 const updateProfileSchema = z
   .object({
     name: z.string().min(2).max(100).optional().transform((s) => s?.trim()),
@@ -117,6 +132,9 @@ const idParamSchema = z.object({
 module.exports = {
   registerSchema,
   loginSchema,
+  sendOtpSchema,
+  verifyOtpSchema,
+  setPasswordSchema,
   updateProfileSchema,
   createProductSchema,
   updateProductSchema,

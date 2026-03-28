@@ -2,6 +2,8 @@ const User = require("../models/User");
 const asyncHandler = require("../utils/asyncHandler");
 const generateToken = require("../utils/generateToken");
 const generateRefreshToken = require("../utils/generateRefreshToken");
+const { sendOtpEmail } = require("../utils/emailService");
+const bcrypt = require("bcryptjs");
 
 const sendTokens = async (user, res, statusCode = 200) => {
   const accessToken = generateToken(user.id);
@@ -122,5 +124,180 @@ const refreshToken = asyncHandler(async (req, res) => {
   await sendTokens(user, res);
 });
 
-module.exports = { registerUser, authUser, logoutUser, refreshToken };
+// @desc    Send OTP to email
+// @route   POST /api/auth/send-otp
+// @access  Public
+const sendOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Hash OTP
+  const salt = await bcrypt.genSalt(10);
+  const hashedOtp = await bcrypt.hash(otp, salt);
+
+  // Find or create user
+  let user = await User.findOne({ email });
+  if (!user) {
+    // Create temporary user without password
+    user = new User({
+      email,
+      name: email.split('@')[0], // Temporary name
+      password: 'temp', // Will be set later
+    });
+  }
+
+  // Set OTP fields
+  user.otp = hashedOtp;
+  user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+  user.otpAttempts = 0;
+
+  await user.save();
+
+  // Send OTP email
+  await sendOtpEmail(email, otp);
+
+  res.json({ message: "OTP sent successfully" });
+});
+
+// @desc    Verify OTP
+// @route   POST /api/auth/verify-otp
+// @access  Public
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    const err = new Error("User not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Check if OTP exists and not expired
+  if (!user.otp || !user.otpExpiry || new Date() > user.otpExpiry) {
+    const err = new Error("OTP expired or invalid");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check attempts
+  if (user.otpAttempts >= 5) {
+    const err = new Error("Too many failed attempts");
+    err.statusCode = 429;
+    throw err;
+  }
+
+  // Verify OTP
+  const isValidOtp = await bcrypt.compare(otp, user.otp);
+  if (!isValidOtp) {
+    user.otpAttempts += 1;
+    await user.save();
+    const err = new Error("Invalid OTP");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Clear OTP fields
+  user.otp = undefined;
+  user.otpExpiry = undefined;
+  user.otpAttempts = 0;
+
+  // Check if user has password set
+  const hasPassword = user.password && user.password !== 'temp';
+
+  if (hasPassword) {
+    // Existing user - login
+    await user.save();
+    await sendTokens(user, res);
+  } else {
+    // New user - require password setup
+    await user.save();
+    res.json({
+      message: "OTP verified. Please set your password.",
+      requiresPasswordSetup: true,
+      email: user.email
+    });
+  }
+});
+
+// @desc    Set password for new user after OTP verification
+// @route   POST /api/auth/set-password
+// @access  Public
+const setPassword = asyncHandler(async (req, res) => {
+  const { email, otp, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    const err = new Error("User not found");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  // Verify OTP again (security measure)
+  if (!user.otp || !user.otpExpiry || new Date() > user.otpExpiry) {
+    const err = new Error("OTP expired or invalid");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const isValidOtp = await bcrypt.compare(otp, user.otp);
+  if (!isValidOtp) {
+    const err = new Error("Invalid OTP");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Set password and clear OTP
+  user.password = password;
+  user.otp = undefined;
+  user.otpExpiry = undefined;
+  user.otpAttempts = 0;
+
+  await user.save();
+
+  // Login user
+  await sendTokens(user, res, 201);
+});
+
+// @desc    Admin Login (only ADMIN_EMAIL can access)
+// @route   POST /api/auth/admin-login
+// @access  Public
+const adminLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  // 🔐 Verify admin email from env
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    const err = new Error("Admin email not configured");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  if (email !== adminEmail) {
+    const err = new Error("Invalid admin credentials");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const user = await User.findOne({ email });
+  const isMatch = user ? await user.matchPassword(password) : false;
+
+  if (!user || !isMatch) {
+    const err = new Error("Invalid admin credentials");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  // Verify user has admin role
+  if (user.role !== "admin") {
+    const err = new Error("User is not an admin");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  await sendTokens(user, res);
+});
+
+module.exports = { registerUser, authUser, logoutUser, refreshToken, sendOtp, verifyOtp, setPassword, adminLogin };
 
