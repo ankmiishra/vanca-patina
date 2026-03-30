@@ -19,7 +19,9 @@ const getUserProfile = asyncHandler(async (req, res) => {
     _id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone || '',
     role: user.role,
+    addresses: user.addresses || [],
   });
 });
 

@@ -1,25 +1,25 @@
 const path = require("path");
-const fs = require("fs");
+const fs   = require("fs");
 const Product = require("../models/product");
 const asyncHandler = require("../utils/asyncHandler");
-const { cloudinary, hasCloudinary } = require("../config/cloudinary");
+const { hasCloudinary, uploadToCloudinary, deleteFromCloudinary, getPublicId } = require("../config/cloudinary");
 
 // @desc    Fetch all products with pagination, search, filters & sorting
 // @route   GET /api/products
 // @access  Public
 const getProducts = asyncHandler(async (req, res) => {
-  const pageSize = req.query.pageSize ?? 12;
-  const pageNumber = req.query.pageNumber ?? 1;
+  const pageSize   = parseInt(req.query.pageSize)   || 12;
+  const pageNumber = parseInt(req.query.pageNumber)  || 1;
 
   const searchTerm = req.query.search || req.query.keyword;
-  const category = req.query.category;
-  const inStock = req.query.inStock;
-  const sortBy = req.query.sortBy;
+  const category   = req.query.category;
+  const inStock    = req.query.inStock;
+  const sortBy     = req.query.sortBy;
 
   const filter = {};
   if (searchTerm) {
     filter.$or = [
-      { name: { $regex: searchTerm, $options: "i" } },
+      { name:        { $regex: searchTerm, $options: "i" } },
       { description: { $regex: searchTerm, $options: "i" } },
     ];
   }
@@ -27,23 +27,18 @@ const getProducts = asyncHandler(async (req, res) => {
   if (inStock) filter.stock = { $gt: 0 };
 
   const sortConfig = {};
-  if (sortBy === "price-asc") sortConfig.price = 1;
+  if (sortBy === "price-asc")  sortConfig.price   = 1;
   else if (sortBy === "price-desc") sortConfig.price = -1;
-  else if (sortBy === "rating") sortConfig.ratings = -1;
+  else if (sortBy === "rating")     sortConfig.ratings = -1;
   else sortConfig.createdAt = -1;
 
-  const total = await Product.countDocuments(filter);
+  const total    = await Product.countDocuments(filter);
   const products = await Product.find(filter)
     .sort(sortConfig)
     .limit(pageSize)
     .skip(pageSize * (pageNumber - 1));
 
-  res.json({
-    products,
-    page: pageNumber,
-    pages: Math.ceil(total / pageSize),
-    total,
-  });
+  res.json({ products, page: pageNumber, pages: Math.ceil(total / pageSize), total });
 });
 
 // @desc    Fetch single product
@@ -86,7 +81,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   res.json(updatedProduct);
 });
 
-// @desc    Delete a product
+// @desc    Delete a product (also deletes its Cloudinary image)
 // @route   DELETE /api/products/:id
 // @access  Private/Admin
 const deleteProduct = asyncHandler(async (req, res) => {
@@ -97,11 +92,17 @@ const deleteProduct = asyncHandler(async (req, res) => {
     throw err;
   }
 
+  // Delete Cloudinary images if present
+  if (hasCloudinary) {
+    const urls = [product.image, ...(product.images || [])].filter(Boolean);
+    await Promise.all(urls.map(u => deleteFromCloudinary(getPublicId(u))));
+  }
+
   await Product.deleteOne({ _id: product._id });
   res.json({ message: "Product removed" });
 });
 
-// @desc    Upload product image (local upload, optional Cloudinary upload)
+// @desc    Upload product image → Cloudinary (or local fallback)
 // @route   POST /api/products/upload
 // @access  Private/Admin
 const uploadProductImage = asyncHandler(async (req, res) => {
@@ -119,29 +120,26 @@ const uploadProductImage = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  // Upload to Cloudinary when configured; otherwise keep local URL.
   let url;
   if (hasCloudinary) {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "vanca-patina/products",
-      resource_type: "image",
+    // req.file.buffer exists when using memoryStorage
+    const source = req.file.buffer || req.file.path;
+    const result = await uploadToCloudinary(source, {
+      public_id: `product-${product._id}-${Date.now()}`,
     });
     url = result.secure_url;
+
+    // If we also have an old local file, clean it up
+    if (req.file.path) fs.unlink(req.file.path, () => {});
   } else {
     url = `/uploads/${path.basename(req.file.filename || req.file.path)}`;
   }
 
-  // Store the resulting image URL in DB.
+  // Persist URL in DB
   product.image = url;
   if (!Array.isArray(product.images)) product.images = [];
-  product.images = [...product.images, url].slice(-10); // cap to avoid unbounded growth
+  product.images = [...product.images, url].slice(-10);
   await product.save();
-
-  // Cleanup local upload file after we upload to Cloudinary.
-  // (If Cloudinary isn't configured, we keep the file so the local URL works.)
-  if (hasCloudinary) {
-    fs.unlink(req.file.path, () => {});
-  }
 
   res.json({ url, images: product.images });
 });

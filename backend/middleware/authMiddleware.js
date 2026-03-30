@@ -19,10 +19,26 @@ const protect = asyncHandler(async (req, res, next) => {
     err.statusCode = 401;
     throw err;
   }
+
   const user = await User.findById(decoded.id).select("-password");
   if (!user) {
     const err = new Error("Not authorized, user not found");
     err.statusCode = 401;
+    throw err;
+  }
+
+  if (user.isBlocked) {
+    const err = new Error("Account is blocked");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Only enforce email verification when explicitly enabled via env var.
+  // Set REQUIRE_EMAIL_VERIFICATION=true in .env when you wire up a real
+  // email/OTP system. Until then, all users can log in freely.
+  if (process.env.REQUIRE_EMAIL_VERIFICATION === "true" && !user.isVerified) {
+    const err = new Error("Account is not verified");
+    err.statusCode = 403;
     throw err;
   }
 

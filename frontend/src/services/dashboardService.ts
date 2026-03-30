@@ -1,0 +1,52 @@
+import api from "./api";
+
+// ── Profile ──────────────────────────────────────────────────────────────────
+
+export async function getProfile() {
+  const res = await api.get("/api/users/profile");
+  return res.data;
+}
+
+export async function updateProfile(data: { name?: string; email?: string; phone?: string; password?: string }) {
+  const res = await api.put("/api/users/profile", data);
+  return res.data;
+}
+
+// ── Addresses ────────────────────────────────────────────────────────────────
+
+export async function getAddresses() {
+  const res = await api.get("/api/users/addresses");
+  return res.data;
+}
+
+export async function addAddress(data: { label?: string; address: string; city: string; postalCode: string; country: string; isDefault?: boolean }) {
+  const res = await api.post("/api/users/addresses", data);
+  return res.data;
+}
+
+export async function updateAddress(addressId: string, data: { label?: string; address?: string; city?: string; postalCode?: string; country?: string; isDefault?: boolean }) {
+  const res = await api.put(`/api/users/addresses/${addressId}`, data);
+  return res.data;
+}
+
+export async function deleteAddress(addressId: string) {
+  const res = await api.delete(`/api/users/addresses/${addressId}`);
+  return res.data;
+}
+
+// ── Wishlist ─────────────────────────────────────────────────────────────────
+
+export async function getWishlist() {
+  const res = await api.get("/api/wishlist");
+  return res.data;
+}
+
+export async function addToWishlist(productId: string) {
+  const res = await api.post("/api/wishlist", { productId });
+  return res.data;
+}
+
+export async function removeFromWishlist(productId: string) {
+  const res = await api.delete(`/api/wishlist/${productId}`);
+  return res.data;
+}

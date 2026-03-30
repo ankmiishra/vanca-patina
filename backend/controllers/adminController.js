@@ -1,7 +1,10 @@
+const path = require('path');
+const fs   = require('fs');
 const Order = require('../models/Order');
-const User = require('../models/User');
+const User  = require('../models/User');
 const Product = require('../models/product');
-const asyncHandler = require("../utils/asyncHandler");
+const asyncHandler = require('../utils/asyncHandler');
+const { hasCloudinary, uploadToCloudinary, deleteFromCloudinary, getPublicId } = require('../config/cloudinary');
 
 // ==================== DASHBOARD ====================
 
@@ -156,11 +159,11 @@ const updateProduct = asyncHandler(async (req, res) => {
   res.json(updatedProduct);
 });
 
-// @desc    Delete product
+// @desc    Delete product (also removes Cloudinary images)
 // @route   DELETE /api/admin/products/:id
 // @access  Private/Admin
 const deleteProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
+  const product = await Product.findById(req.params.id);
 
   if (!product) {
     const err = new Error("Product not found");
@@ -168,7 +171,51 @@ const deleteProduct = asyncHandler(async (req, res) => {
     throw err;
   }
 
+  // Clean up Cloudinary assets before deleting the product document
+  if (hasCloudinary) {
+    const urls = [product.image, ...(product.images || [])].filter(Boolean);
+    await Promise.all(urls.map(u => deleteFromCloudinary(getPublicId(u))));
+  }
+
+  await Product.deleteOne({ _id: product._id });
   res.json({ message: "Product deleted successfully", product });
+});
+
+// @desc    Upload image for a product (admin dashboard)
+// @route   POST /api/admin/products/upload
+// @access  Private/Admin
+const uploadAdminProductImage = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    const err = new Error('No image uploaded');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let url;
+  if (hasCloudinary) {
+    const source = req.file.buffer || req.file.path;
+    const result = await uploadToCloudinary(source, {
+      public_id: `admin-product-${Date.now()}`,
+    });
+    url = result.secure_url;
+    if (req.file.path) fs.unlink(req.file.path, () => {});
+  } else {
+    url = `/uploads/${path.basename(req.file.filename || req.file.path)}`;
+  }
+
+  // If productId provided, update the product record immediately
+  const { productId } = req.body;
+  if (productId) {
+    const product = await Product.findById(productId);
+    if (product) {
+      product.image = url;
+      if (!Array.isArray(product.images)) product.images = [];
+      product.images = [...product.images, url].slice(-10);
+      await product.save();
+    }
+  }
+
+  res.json({ url });
 });
 
 // @desc    Get all products (admin view with full details)
@@ -309,6 +356,7 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadAdminProductImage,
   getAdminProducts,
   getCategories,
   updateCategory,

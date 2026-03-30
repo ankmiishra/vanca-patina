@@ -10,8 +10,8 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (config.headers as any).Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -53,14 +53,15 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refreshToken");
         const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/refresh`, { refreshToken }, { withCredentials: true });
-        const { token, refreshToken: newRefreshToken } = response.data;
-        localStorage.setItem("token", token);
+        // Backend returns 'accessToken', not 'token'
+        const { accessToken, refreshToken: newRefreshToken } = response.data;
+        localStorage.setItem("token", accessToken);
         if (newRefreshToken) localStorage.setItem("refreshToken", newRefreshToken);
 
-        api.defaults.headers.common.Authorization = `Bearer ${token}`;
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
-        processQueue(null, token);
+        processQueue(null, accessToken);
         return api(originalRequest);
       } catch (err) {
         processQueue(err, null);

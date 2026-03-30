@@ -25,15 +25,25 @@ const AdminLogin = () => {
     try {
       console.log("🔐 Admin login attempt:", { email });
       const response = await api.post("/api/auth/admin-login", { email, password });
+      const data = response.data;
 
-      localStorage.setItem("token", response.data.token);
-      if (response.data.refreshToken) localStorage.setItem("refreshToken", response.data.refreshToken);
-      localStorage.setItem("role", response.data.role);
-      localStorage.setItem("adminName", response.data.name);
+      // Store auth data in localStorage (same keys AuthContext reads on mount)
+      localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("adminName", data.name);
+      localStorage.setItem("user", JSON.stringify({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+      }));
 
       toast.success("Admin login successful!");
       console.log("✅ Admin authenticated");
-      navigate("/admin/dashboard");
+
+      // Force a full reload so AuthContext picks up localStorage on mount
+      window.location.href = "/admin/dashboard";
     } catch (error: any) {
       const message = error?.response?.data?.message || error?.message || "Login failed";
       setErrorMsg(message);
@@ -87,7 +97,7 @@ const AdminLogin = () => {
               Authorized personnel only
             </p>
             {errorMsg && (
-              <p className="text-sm text-red-500 mt-2 bg-red-100 p-2 rounded-md">
+              <p className="text-sm text-red-400 mt-3 bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg">
                 {errorMsg}
               </p>
             )}
@@ -105,7 +115,7 @@ const AdminLogin = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@vancainterio.com"
+                  placeholder="admin@example.com"
                   className="pl-10 bg-secondary/50 border-border/50 focus:border-accent/50 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
@@ -135,21 +145,13 @@ const AdminLogin = () => {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <Link
-                to="/forgot-password"
-                className="text-xs text-accent hover:text-accent/80 transition-colors"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
             <Button
               type="submit"
+              disabled={isLoading}
               className="w-full bg-accent text-accent-foreground hover:bg-accent/90 group"
             >
-              Access Dashboard
-              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              {isLoading ? "Authenticating..." : "Access Dashboard"}
+              {!isLoading && <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />}
             </Button>
           </form>
 

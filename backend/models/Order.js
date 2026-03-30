@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const orderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -8,7 +9,16 @@ const orderItemSchema = new mongoose.Schema({
   price: { type: Number, required: true },
 });
 
+// Helper to generate a short unique order ID like VP-20260328-A3F2
+function generateOrderId() {
+  const date = new Date();
+  const datePart = date.toISOString().slice(0, 10).replace(/-/g, ''); // e.g. 20260328
+  const randomPart = crypto.randomBytes(2).toString('hex').toUpperCase(); // e.g. A3F2
+  return `VP-${datePart}-${randomPart}`;
+}
+
 const orderSchema = new mongoose.Schema({
+  orderId: { type: String, unique: true, sparse: true, index: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   orderItems: [orderItemSchema],
   shippingAddress: {
@@ -34,5 +44,12 @@ const orderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 orderSchema.index({ user: 1 });
+
+// Auto-generate orderId only for brand-new orders (async style for Mongoose 6+)
+orderSchema.pre('save', async function () {
+  if (this.isNew && !this.orderId) {
+    this.orderId = generateOrderId();
+  }
+});
 
 module.exports = mongoose.model('Order', orderSchema);

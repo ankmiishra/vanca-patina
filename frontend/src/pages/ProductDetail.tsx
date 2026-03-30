@@ -11,6 +11,27 @@ import api from "@/services/api";
 import { mapBackendProduct } from "@/lib/mapBackendProduct";
 import { toast } from "sonner";
 
+// Helper: detect URLs in text and return an array of text/link nodes
+const renderDescription = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    urlRegex.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline underline-offset-2 hover:text-patina transition-colors break-all"
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+};
+
 const ProductDetail = () => {
   const { id } = useParams();
   const { products } = useProducts();
@@ -137,7 +158,7 @@ const ProductDetail = () => {
               )}
             </div>
 
-            <p className="text-muted-foreground mt-6 leading-relaxed">{product.description}</p>
+            <p className="text-muted-foreground mt-6 leading-relaxed">{renderDescription(product.description)}</p>
 
             <div className="flex flex-wrap gap-3 mt-6">
               <span className="px-3 py-1 text-xs glass rounded-full text-muted-foreground">{product.category}</span>

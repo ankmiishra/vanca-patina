@@ -46,8 +46,8 @@ const productBaseSchema = z.object({
   description: z.string().min(10).max(5000).transform((s) => s?.trim()),
   stock: z.coerce.number().int().nonnegative(),
   finishType: z.enum(["Matte", "Glossy", "Satin", "Standard"]).default("Standard").optional(),
-  image: z.string().url().optional().nullable(),
-  images: z.array(z.string().url()).optional().nullable(),
+  image: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().nullable(),
   ratings: z.coerce.number().nonnegative().optional(),
   numReviews: z.coerce.number().int().nonnegative().optional(),
 });
@@ -118,7 +118,7 @@ const checkoutSchema = z.object({
 });
 
 const updateOrderStatusSchema = z.object({
-  status: z.enum(["processing", "shipped", "delivered"]),
+  status: z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]),
 });
 
 const uploadProductImageSchema = z.object({

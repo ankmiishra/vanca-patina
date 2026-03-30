@@ -116,6 +116,12 @@ const Checkout = () => {
     );
   }
 
+  // Calculate breakdown identically to the backend paymentController
+  const subtotal = items.reduce((sum, it) => sum + (it.product.price * it.quantity), 0);
+  const tax = Number((subtotal * 0.05).toFixed(2));
+  const shipping = subtotal > 0 && subtotal <= 2000 ? 75 : 0;
+  const grandTotal = subtotal + tax + shipping;
+
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4 lg:px-8">
@@ -227,11 +233,28 @@ const Checkout = () => {
                   </div>
                 ))}
 
-                <div className="border-t border-border pt-4 flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-semibold text-foreground">
-                    ₹{totalPrice.toLocaleString()}
-                  </span>
+                <div className="border-t border-border pt-4 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-medium text-foreground">₹{subtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tax (5%)</span>
+                    <span className="font-medium text-foreground">₹{tax.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Shipping</span>
+                    <span className="font-medium text-foreground">
+                      {shipping === 0 ? "Free" : `₹${shipping.toLocaleString()}`}
+                    </span>
+                  </div>
+                  
+                  <div className="border-t border-border pt-3 mt-3 flex justify-between text-base">
+                    <span className="font-semibold text-foreground">Grand Total</span>
+                    <span className="font-bold text-[#D4AF37]">
+                      ₹{grandTotal.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

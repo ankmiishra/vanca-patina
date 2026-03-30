@@ -1,5 +1,6 @@
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
+const upload  = require('../middleware/uploadMiddleware');
 const {
   getDashboardStats,
   getAllOrders,
@@ -7,6 +8,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  uploadAdminProductImage,
   getAdminProducts,
   getCategories,
   updateCategory,
@@ -42,6 +44,15 @@ router.route('/orders/:id')
   );
 
 // ==================== PRODUCTS ====================
+// Image upload (must be declared BEFORE /:id to avoid 'upload' being treated as an id)
+router.post(
+  '/products/upload',
+  protect,
+  admin,
+  upload.single('image'),
+  uploadAdminProductImage
+);
+
 router.route('/products')
   .get(protect, admin, getAdminProducts)
   .post(protect, admin, validate(createProductSchema), createProduct);

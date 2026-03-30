@@ -70,25 +70,21 @@ const addOrderItems = asyncHandler(async (req, res) => {
       await product.save({ session });
     }
 
-    // 🧾 CREATE ORDER
-    const createdOrder = await Order.create(
-      [
-        {
-          user: req.user._id,
-          orderItems,
-          shippingAddress,
-          paymentMethod,
-          itemsPrice,
-          taxPrice,
-          shippingPrice,
-          totalPrice,
-          status: paymentMethod === "COD" ? "pending" : "processing",
-          isPaid: paymentMethod === "COD" ? false : true,
-          paidAt: paymentMethod === "COD" ? null : new Date(),
-        },
-      ],
-      { session }
-    );
+    // 🧾 CREATE ORDER (use .save() so pre('save') hook fires for orderId)
+    const newOrder = new Order({
+      user: req.user._id,
+      orderItems,
+      shippingAddress,
+      paymentMethod,
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      totalPrice,
+      status: paymentMethod === "COD" ? "pending" : "processing",
+      isPaid: paymentMethod === "COD" ? false : true,
+      paidAt: paymentMethod === "COD" ? null : new Date(),
+    });
+    const createdOrder = await newOrder.save({ session });
 
     // 🛒 CLEAR CART
     cart.items = [];
@@ -98,7 +94,7 @@ const addOrderItems = asyncHandler(async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json(createdOrder[0]);
+    res.status(201).json(createdOrder);
   } catch (error) {
     // ❌ ROLLBACK
     await session.abortTransaction();

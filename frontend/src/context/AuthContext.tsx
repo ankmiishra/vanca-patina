@@ -14,14 +14,34 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  sendOtp: (email: string) => Promise<void>;
-  verifyOtp: (email: string, otp: string) => Promise<{ requiresPasswordSetup: boolean }>;
-  setPassword: (email: string, otp: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const storeAuth = (data: { accessToken: string; refreshToken?: string; _id: string; name: string; email: string; role: string }) => {
+  localStorage.setItem("token", data.accessToken);
+  if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+  localStorage.setItem("role", data.role);
+  // Persist user info so page refresh doesn't lose identity
+  localStorage.setItem("user", JSON.stringify({
+    _id: data._id,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+  }));
+};
+
+const clearAuth = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("role");
+  localStorage.removeItem("user");
+};
+
+// ─── provider ───────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -30,22 +50,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAuthenticated = !!token && !!user;
 
-  // Initialize auth state from localStorage
+  // Restore auth state from localStorage on mount
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
-    const storedRole = localStorage.getItem("role");
+    const storedUser = localStorage.getItem("user");
 
-    if (storedToken) {
-      setToken(storedToken);
-      // For now, we'll create a basic user object from stored data
-      // In a real app, you might want to fetch user profile from API
-      if (storedRole) {
-        setUser({
-          _id: "temp",
-          name: "User",
-          email: "user@example.com",
-          role: storedRole,
-        });
+    if (storedToken && storedUser) {
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch {
+        clearAuth();
       }
     }
     setIsLoading(false);
@@ -55,108 +70,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { loginUser } = await import("@/services/authService");
     const data = await loginUser(email, password);
 
-    localStorage.setItem("token", data.token);
-    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
-    localStorage.setItem("role", data.role);
-
-    setToken(data.token);
-    setUser({
-      _id: data._id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    });
+    storeAuth(data);
+    setToken(data.accessToken);
+    setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
     const { registerUser } = await import("@/services/authService");
     const data = await registerUser(name, email, password);
 
-    localStorage.setItem("token", data.token);
-    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
-    localStorage.setItem("role", data.role);
-
-    setToken(data.token);
-    setUser({
-      _id: data._id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    });
-  }, []);
-
-  const sendOtp = useCallback(async (email: string) => {
-    const { sendOtp } = await import("@/services/authService");
-    await sendOtp(email);
-  }, []);
-
-  const verifyOtp = useCallback(async (email: string, otp: string) => {
-    const { verifyOtp } = await import("@/services/authService");
-    const data = await verifyOtp(email, otp);
-
-    if (!data.requiresPasswordSetup) {
-      // User is logged in
-      localStorage.setItem("token", data.token);
-      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
-      localStorage.setItem("role", data.role);
-
-      setToken(data.token);
-      setUser({
-        _id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-      });
-    }
-
-    return data;
-  }, []);
-
-  const setPassword = useCallback(async (email: string, otp: string, password: string) => {
-    const { setPassword } = await import("@/services/authService");
-    const data = await setPassword(email, otp, password);
-
-    localStorage.setItem("token", data.token);
-    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
-    localStorage.setItem("role", data.role);
-
-    setToken(data.token);
-    setUser({
-      _id: data._id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-    });
+    storeAuth(data);
+    setToken(data.accessToken);
+    setUser({ _id: data._id, name: data.name, email: data.email, role: data.role });
   }, []);
 
   const logout = useCallback(async () => {
     try {
       const { logoutUser } = await import("@/services/authService");
       await logoutUser();
-    } catch (error) {
-      // Ignore logout errors
+    } catch {
+      // Ignore — we clear local state regardless
     }
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("role");
+    clearAuth();
     setToken(null);
     setUser(null);
-  }, []);
-
-  const refreshAuth = useCallback(async () => {
-    const storedToken = localStorage.getItem("token");
-    const storedRole = localStorage.getItem("role");
-
-    if (storedToken && storedRole) {
-      setToken(storedToken);
-      setUser({
-        _id: "temp",
-        name: "User",
-        email: "user@example.com",
-        role: storedRole,
-      });
-    }
   }, []);
 
   const value: AuthContextType = {
@@ -166,11 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     login,
     register,
-    sendOtp,
-    verifyOtp,
-    setPassword,
     logout,
-    refreshAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

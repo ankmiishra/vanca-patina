@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ShoppingBag, Menu, X, Search, User, UserCircle, Package, LogOut } from "lucide-react";
+import { ShoppingBag, Menu, X, Search, User, LayoutDashboard, Package, Heart, LogOut } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,8 +31,7 @@ const Navbar = () => {
     try {
       await logout();
       navigate("/");
-    } catch (error) {
-      // Handle logout error if needed
+    } catch {
       navigate("/");
     }
   };
@@ -80,17 +79,26 @@ const Navbar = () => {
                 <DropdownMenuTrigger className="outline-none hover:text-primary transition-all hover:scale-110 duration-300">
                   <User className="w-[1.15rem] h-[1.15rem]" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-background/95 backdrop-blur-lg border-border/50 mt-2 shadow-xl shadow-black/10">
-                  <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer gap-2 py-2">
-                    <UserCircle className="w-4 h-4" />
-                    <span className="font-medium">My Profile</span>
+                <DropdownMenuContent align="end" className="w-52 bg-background/95 backdrop-blur-lg border-border/50 mt-2 shadow-xl shadow-black/10">
+                  {/* User info header */}
+                  <div className="px-3 py-2.5 border-b border-border/30">
+                    <p className="text-sm font-semibold text-foreground truncate">{user?.name || "User"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
+                  </div>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer gap-2 py-2.5 mt-1">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="font-medium">Dashboard</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/orders")} className="cursor-pointer gap-2 py-2">
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer gap-2 py-2.5">
                     <Package className="w-4 h-4" />
                     <span className="font-medium">My Orders</span>
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer gap-2 py-2.5">
+                    <Heart className="w-4 h-4" />
+                    <span className="font-medium">Wishlist</span>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-border/50" />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 py-2 text-red-500 focus:text-red-500 focus:bg-red-500/10 dark:focus:bg-red-500/10">
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 py-2.5 text-red-500 focus:text-red-500 focus:bg-red-500/10 dark:focus:bg-red-500/10">
                     <LogOut className="w-4 h-4" />
                     <span className="font-medium">Logout</span>
                   </DropdownMenuItem>
@@ -137,6 +145,16 @@ const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+              {isAuthenticated && (
+                <>
+                  <Link to="/dashboard" onClick={() => setMobileOpen(false)} className="text-lg text-muted-foreground hover:text-foreground transition-colors">
+                    My Dashboard
+                  </Link>
+                  <button onClick={() => { setMobileOpen(false); handleLogout(); }} className="text-lg text-red-500 text-left">
+                    Logout
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         )}

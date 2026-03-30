@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, required: true, unique: true, index: true },
+  email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   phone: { type: String },
@@ -28,6 +28,8 @@ const UserSchema = new mongoose.Schema({
   otp: { type: String },
   otpExpiry: { type: Date },
   otpAttempts: { type: Number, default: 0 },
+  isVerified: { type: Boolean, default: true },  // set false when email verification is enabled
+  isBlocked: { type: Boolean, default: false },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function () {

@@ -10,23 +10,8 @@ export async function loginUser(email: string, password: string) {
   return res.data;
 }
 
-export async function sendOtp(email: string) {
-  const res = await api.post("/api/auth/send-otp", { email });
-  return res.data;
-}
-
-export async function verifyOtp(email: string, otp: string) {
-  const res = await api.post("/api/auth/verify-otp", { email, otp });
-  return res.data;
-}
-
-export async function setPassword(email: string, otp: string, password: string) {
-  const res = await api.post("/api/auth/set-password", { email, otp, password });
-  return res.data;
-}
-
 export async function logoutUser() {
-  const res = await api.post("/api/auth/logout");
+  const refreshToken = localStorage.getItem("refreshToken");
+  const res = await api.post("/api/auth/logout", { refreshToken });
   return res.data;
 }
-
