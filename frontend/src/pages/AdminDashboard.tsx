@@ -531,6 +531,12 @@ const AdminDashboard = () => {
                     <option value="Matte">Matte</option>
                     <option value="Glossy">Glossy</option>
                     <option value="Satin">Satin</option>
+                    <option value="Antique">Antique</option>
+                    <option value="Brushed">Brushed</option>
+                    <option value="Polished">Polished</option>
+                    <option value="Textured">Textured</option>
+                    <option value="Metallic">Metallic</option>
+                    <option value="Clear Coat">Clear Coat</option>
                   </select>
                 </div>
                 <div>
